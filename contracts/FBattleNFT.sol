@@ -133,13 +133,14 @@ contract FootballBattle721 is ERC721 {
         emit MintProject(pId_, index_, tokenIdCurrent-1, tos_);
     }
 
-    // function _beforeTokenTransfer(
-    //     address from,
-    //     address to,
-    //     uint256 tokenId
-    // ) internal virtual override {
-    //     _cryptoTransfer(from, projects[infos[tokenId].proId].crypto, projects[infos[tokenId].proId].fee);      
-    // }
+    function _beforeTokenTransfer(
+        address from,
+        address to,
+        uint256 tokenId
+    ) internal virtual override {
+        _cryptoTransfer(from, _tokenFBL, projects[infos[tokenId].proId].transferFee);
+        projects[infos[tokenId].proId].uTransferTax  += projects[infos[tokenId].proId].transferFee;      
+    }
 
 /** payment */    
     function _cryptoTransferFrom(address from_, address to_, address crypto_, uint256 amount_) internal returns (uint256) {

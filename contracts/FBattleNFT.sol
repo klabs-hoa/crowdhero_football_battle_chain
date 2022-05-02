@@ -10,22 +10,19 @@ contract FootballBattle721 is ERC721 {
     struct Project {
         uint    fundId;
         address creator;
-        uint256 mintPrice;      // use USD
-        uint256 mintFee;        // use USD
-        uint256 transferFee;    // use FBL
+        uint256 price;  // include fee
+        uint256 fee;
+        address crypto;
         string  URI;
         uint    uLimit;
-        uint256 uMintIncome;    // use USD
-        uint256 uMintTax;       // use USD
-        uint256 uTransferTax;   // use FBL
+        uint256 uIncome;
+        uint256 uTax;
         uint    uIdCurrent;
     }
     struct Info {
         uint    proId;
         uint    index;
     }
-    address                                         private _tokenUSD;
-    address                                         private _tokenFBL;
 
     uint256                                         public  tokenIdCurrent;
     Project[]                                       public  projects;
@@ -62,11 +59,10 @@ contract FootballBattle721 is ERC721 {
     function opUpdateTokenUrl(uint256 tokenId_, string memory url_) public chkOperator { 
         URLs[tokenId_]    = url_;
     }
-    function opUpdateProject(uint pId_, uint256 mintPrice_, uint256 mintFee_, uint256 transferFee_,string memory URI_) external chkOperator {
-        projects[pId_].mintPrice        = mintPrice_;
-        projects[pId_].mintFee          = mintFee_;
-        projects[pId_].URI              = URI_;
-        projects[pId_].transferFee      = transferFee_;
+    function opUpdateProject(uint pId_, uint256 price_, uint256 fee_, string memory URI_) external chkOperator {
+        projects[pId_].price      = price_;
+        projects[pId_].fee        = fee_;
+        projects[pId_].URI        = URI_;
     }
     function ownerTokens(address own_) external view returns(uint[][] memory) {
         require(balanceOf(own_) > 0, "none NFT");
@@ -97,13 +93,13 @@ contract FootballBattle721 is ERC721 {
     }
     
     /** for project */
-    function opCreateProject(uint fundId_, address creator_, uint256 mintPrice_, uint256 mintFee_, uint256 transferFee_, string memory URI_, uint256 limit_) public chkOperator {
+    function opCreateProject(uint fundId_, address creator_, uint256 price_, uint256 fee_, address crypto_,string memory URI_, uint256 limit_) public chkOperator {
         Project memory vPro;
         vPro.fundId          = fundId_;
         vPro.creator         = creator_;
-        vPro.mintPrice       = mintPrice_;
-        vPro.mintFee         = mintFee_;
-        vPro.transferFee     = transferFee_;
+        vPro.price           = price_;
+        vPro.fee             = fee_;
+        vPro.crypto          = crypto_;
         vPro.URI             = URI_;
         vPro.uLimit          = limit_;
         projects.push(vPro);
@@ -112,8 +108,8 @@ contract FootballBattle721 is ERC721 {
     }
     function opMintProject(uint pId_, address[] memory tos_, uint256 index_, uint256 amount_) external payable chkOperator {
         require( tos_.length <= projects[pId_].uLimit, "invalid token number");
-        require( amount_  == projects[pId_].mintPrice * tos_.length,  "Amount sent is not correct");
-        _cryptoTransferFrom(msg.sender, address(this), _tokenUSD, amount_);
+        require( amount_  == projects[pId_].price * tos_.length,  "Amount sent is not correct");
+        _cryptoTransferFrom(msg.sender, address(this), projects[pId_].crypto, amount_);
        
         for(uint256 vI = 0; vI < tos_.length; vI++) {
             _mint(tos_[vI], tokenIdCurrent);
@@ -123,23 +119,14 @@ contract FootballBattle721 is ERC721 {
             vInfo.index     =   index_ + vI;
             infos.push(vInfo);
         }
-        projects[pId_].uLimit           -= tos_.length;
-        projects[pId_].uIdCurrent       += tos_.length;
+        projects[pId_].uLimit      -= tos_.length;
+        projects[pId_].uIdCurrent  += tos_.length;
         if(amount_ > 0) {
-            uint256 vFee                =  projects[pId_].mintFee * tos_.length;
-            projects[pId_].uMintTax     += vFee;
-            projects[pId_].uMintIncome  += amount_ - vFee;
+            uint256 vFee           =  projects[pId_].fee * tos_.length;
+            projects[pId_].uTax    += vFee;
+            projects[pId_].uIncome += amount_ - vFee;
         }
         emit MintProject(pId_, index_, tokenIdCurrent-1, tos_);
-    }
-
-    function _beforeTokenTransfer(
-        address from,
-        address to,
-        uint256 tokenId
-    ) internal virtual override {
-        _cryptoTransfer(from, _tokenFBL, projects[infos[tokenId].proId].transferFee);
-        projects[infos[tokenId].proId].uTransferTax  += projects[infos[tokenId].proId].transferFee;      
     }
 
 /** payment */    
@@ -165,20 +152,15 @@ contract FootballBattle721 is ERC721 {
 /** for creator */        
     function withdraw(uint pId_) external {
         require(projects[pId_].creator == msg.sender, "only for creator");
-        uint256 vAmount                     = projects[pId_].uMintIncome;
-        projects[pId_].uMintIncome         = 0;
-        _cryptoTransfer(msg.sender, _tokenUSD, vAmount);
+        uint256 vAmount                     = projects[pId_].uIncome;
+        projects[pId_].uIncome         = 0;
+        _cryptoTransfer(msg.sender, projects[pId_].crypto, vAmount);
     }
 /** for owner */   
-    function owGetTaxUSD(uint pId_) external chkOwnerLock {
-        uint256 vAmount                 = projects[pId_].uMintTax;
-        projects[pId_].uMintTax         = 0;
-        _cryptoTransfer(msg.sender, _tokenUSD, vAmount);
-    }
-    function owGetTaxFBL(uint pId_) external chkOwnerLock {
-        uint256 vAmount                 = projects[pId_].uTransferTax;
-        projects[pId_].uTransferTax     = 0;
-        _cryptoTransfer(msg.sender, _tokenFBL, vAmount);
+    function owGetTax(uint pId_) external chkOwnerLock {
+        uint256 vAmount                 = projects[pId_].uTax;
+        projects[pId_].uTax        = 0;
+        _cryptoTransfer(msg.sender, projects[pId_].crypto, vAmount);
     }
     function owGetCrypto(address crypto_, uint256 value_) public chkOwnerLock {
         _cryptoTransfer(msg.sender,  crypto_, value_);
@@ -186,9 +168,5 @@ contract FootballBattle721 is ERC721 {
 /** for test */   
     function testSetOperator(address opr_, bool val_) public {
         _operators[opr_] = val_;
-    }
-    function testToken(address tokenUSD_, address tokenFBL_) public {
-        _tokenUSD   = tokenUSD_;
-        _tokenFBL   = tokenFBL_;
     }    
 }

@@ -2,6 +2,7 @@
 pragma solidity ^0.8.1;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 
 contract FBattleMarket  {
     
@@ -17,6 +18,7 @@ contract FBattleMarket  {
     uint256                                         public  taxValue;
 
     address                                         private _tokenFBL;
+    address                                         private _nftFB;
     mapping(address =>  bool)                       private _operators;
     address                                         private _owner;
     bool                                            private _ownerLock = true;
@@ -24,9 +26,10 @@ contract FBattleMarket  {
     event SellItem(uint indexed id, address buyer, uint256 value);
     event BuyItem(uint indexed id, address buyer, uint256 value, address seller);
 
-    constructor(address tokenFBL_, address[] memory operators_ ){
+    constructor(address tokenFBL_, address nftFB_, address[] memory operators_ ){
         _owner       = payable(msg.sender);
         _tokenFBL    = tokenFBL_;
+        _nftFB       = nftFB_;
         for(uint i=0; i < operators_.length; i++) {
             address opr = operators_[i];
             require( opr != address(0), "invalid operator");
@@ -48,10 +51,13 @@ contract FBattleMarket  {
     function opSetTax(uint256 val_) public chkOperator {
         taxPercent   = val_;
     }
+
 /** for seller */        
+    // need approve before
     function sell(uint pId_, uint256 value_) external {
         // check owner of NFT
-
+        require(IERC721(_nftFB).ownerOf(pId_) == msg.sender, "only owner");
+        require(IERC721(_nftFB).getApproved(pId_) == address(this), "need approved");
         // check exist
         if(sellItems[pId_].value == 0) sellList.push(pId_);
         sellItems[pId_].owner    = msg.sender;
@@ -69,10 +75,12 @@ contract FBattleMarket  {
         require( pValue_ > 0, "invalid value");
         require( sellItems[pId_].value  == pValue_, "invalid");
         // paid
-        uint256 vTax    = (pValue_/100)*10;
+        uint256 vTax    = (pValue_/100)*taxPercent;
         _cryptoTransferFrom(msg.sender, address(this), _tokenFBL, vTax);
         taxValue        += vTax;
         _cryptoTransferFrom(msg.sender, sellItems[pId_].owner, _tokenFBL, pValue_ - vTax);
+        //transfer
+        IERC721(_nftFB).transferFrom(sellItems[pId_].owner, msg.sender, pId_);
         delete sellList[sellItems[pId_].index];
         delete sellItems[pId_];
     }
@@ -98,6 +106,12 @@ contract FBattleMarket  {
     }
 
 /** for owner */
+    function owSetNftFB(address nftFB_) public chkOwnerLock {
+        _nftFB   = nftFB_;
+    }
+    function owSetTokenFBL(address tokenFBL_) public chkOwnerLock {
+        _tokenFBL   = tokenFBL_;
+    }
     function owGetTax() external chkOwnerLock {
         uint256 vAmount                 = taxValue;
         taxValue                        = 0;

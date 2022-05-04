@@ -10,6 +10,7 @@ contract FBattleMarket  {
         address    owner;
         uint256    value;
         uint256    index;
+        uint256    endTime;
     }
 
     uint256[]                                       public  sellList;    
@@ -54,15 +55,16 @@ contract FBattleMarket  {
 
 /** for seller */        
     // need approve before
-    function sell(uint pId_, uint256 value_) external {
+    function sell(uint pId_, uint256 pValue_, uint256 pEndTime_) external {
         // check owner of NFT
         require(IERC721(_nftFB).ownerOf(pId_) == msg.sender, "only owner");
         require(IERC721(_nftFB).getApproved(pId_) == address(this), "need approved");
         // check exist
         if(sellItems[pId_].value == 0) sellList.push(pId_);
         sellItems[pId_].owner    = msg.sender;
-        sellItems[pId_].value    = value_;
+        sellItems[pId_].value    = pValue_;
         sellItems[pId_].index    = sellList.length - 1;
+        sellItems[pId_].endTime  = pEndTime_;
     }
     function stop(uint pId_) external {
         require(sellItems[pId_].owner == msg.sender, "only owner");
@@ -72,6 +74,7 @@ contract FBattleMarket  {
 /** for buyer */    
     function buy(uint pId_, uint256 pValue_) external {
         // check buying NFT
+        require( sellItems[pId_].endTime == 0, "only operator");
         require( pValue_ > 0, "invalid value");
         require( sellItems[pId_].value  == pValue_, "invalid");
         // paid
@@ -81,6 +84,22 @@ contract FBattleMarket  {
         _cryptoTransferFrom(msg.sender, sellItems[pId_].owner, _tokenFBL, pValue_ - vTax);
         //transfer
         IERC721(_nftFB).transferFrom(sellItems[pId_].owner, msg.sender, pId_);
+        delete sellList[sellItems[pId_].index];
+        delete sellItems[pId_];
+    }
+/** for operator */    
+    function opBuy(uint pId_, uint256 pValue_, address pBuyer_) external chkOperator {
+        // check buying NFT
+        require( sellItems[pId_].endTime > 0, "only buyer");
+        require( sellItems[pId_].endTime > block.timestamp, "invalid endTime");
+        require( pValue_ >= sellItems[pId_].value, "invalid value");
+        // paid
+        uint256 vTax    = (pValue_/100)*taxPercent;
+        _cryptoTransferFrom(pBuyer_, address(this), _tokenFBL, vTax);
+        taxValue        += vTax;
+        _cryptoTransferFrom(pBuyer_, sellItems[pId_].owner, _tokenFBL, pValue_ - vTax);
+        //transfer
+        IERC721(_nftFB).transferFrom(sellItems[pId_].owner, pBuyer_, pId_);
         delete sellList[sellItems[pId_].index];
         delete sellItems[pId_];
     }

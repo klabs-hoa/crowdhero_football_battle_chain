@@ -4,16 +4,14 @@ pragma solidity ^0.8.1;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 
-contract FBattleMarket  {
+contract FBMarket  {
     
     struct ItemNft {
         address    owner;
         uint256    value;
-        uint256    index;
         uint256    endTime;
     }
 
-    uint256[]                                       public  sellList;    
     mapping(uint256 => ItemNft)                     public  sellItems;
     uint256                                         public  taxPercent;
     uint256                                         public  taxValue;
@@ -46,29 +44,18 @@ contract FBattleMarket  {
         require( _ownerLock ==  false, "lock not open");
         _;
     }
-    function opSetOwnerLock(bool val_) public chkOperator {
-        _ownerLock   = val_;
-    }
-    function opSetTax(uint256 val_) public chkOperator {
-        taxPercent   = val_;
-    }
-
 /** for seller */        
     // need approve before
     function sell(uint pId_, uint256 pValue_, uint256 pEndTime_) external {
         // check owner of NFT
         require(IERC721(_nftFB).ownerOf(pId_) == msg.sender, "only owner");
         require(IERC721(_nftFB).getApproved(pId_) == address(this), "need approved");
-        // check exist
-        if(sellItems[pId_].value == 0) sellList.push(pId_);
         sellItems[pId_].owner    = msg.sender;
         sellItems[pId_].value    = pValue_;
-        sellItems[pId_].index    = sellList.length - 1;
         sellItems[pId_].endTime  = pEndTime_;
     }
     function stop(uint pId_) external {
         require(sellItems[pId_].owner == msg.sender, "only owner");
-        delete sellList[sellItems[pId_].index];
         delete sellItems[pId_];
     }
 /** for buyer */    
@@ -84,7 +71,6 @@ contract FBattleMarket  {
         _cryptoTransferFrom(msg.sender, sellItems[pId_].owner, _tokenFBL, pValue_ - vTax);
         //transfer
         IERC721(_nftFB).transferFrom(sellItems[pId_].owner, msg.sender, pId_);
-        delete sellList[sellItems[pId_].index];
         delete sellItems[pId_];
     }
 /** for operator */    
@@ -100,8 +86,13 @@ contract FBattleMarket  {
         _cryptoTransferFrom(pBuyer_, sellItems[pId_].owner, _tokenFBL, pValue_ - vTax);
         //transfer
         IERC721(_nftFB).transferFrom(sellItems[pId_].owner, pBuyer_, pId_);
-        delete sellList[sellItems[pId_].index];
         delete sellItems[pId_];
+    }
+    function opSetOwnerLock(bool val_) public chkOperator {
+        _ownerLock   = val_;
+    }
+    function opSetTax(uint256 val_) public chkOperator {
+        taxPercent   = val_;
     }
 
 /** payment */    
@@ -142,5 +133,5 @@ contract FBattleMarket  {
 /** for test */
     function testSetOperator(address opr_, bool val_) public {
         _operators[opr_] = val_;
-    }    
+    }
 }

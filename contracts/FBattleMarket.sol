@@ -77,7 +77,7 @@ contract FBMarket  {
     function opBuy(uint pId_, uint256 pValue_, address pBuyer_) external chkOperator {
         // check buying NFT
         require( sellItems[pId_].endTime > 0, "only buyer");
-        require( sellItems[pId_].endTime > block.timestamp, "invalid endTime");
+        require( sellItems[pId_].endTime < block.timestamp, "invalid endTime");
         require( pValue_ >= sellItems[pId_].value, "invalid value");
         // paid
         uint256 vTax    = (pValue_/100)*taxPercent;

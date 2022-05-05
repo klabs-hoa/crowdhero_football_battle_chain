@@ -88,6 +88,9 @@ contract FBMarket  {
         IERC721(_nftFB).transferFrom(sellItems[pId_].owner, pBuyer_, pId_);
         delete sellItems[pId_];
     }
+    function opStop(uint pId_) external chkOperator {
+        delete sellItems[pId_];
+    }
     function opSetOwnerLock(bool val_) public chkOperator {
         _ownerLock   = val_;
     }

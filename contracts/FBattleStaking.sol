@@ -5,33 +5,22 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract ShareRevenue {
 
-    struct Deposit {
-        address     staker;
-        uint256     amount;
-        uint        dateFrom;
-    }
     struct Reward {
+        address     crypto;
+        uint256     amount;
         uint        dateFrom;
-        uint256     amount;
-        address     crypto;
+        uint        ratio;// 1 FBL/ amount crypto
     } 
-
-    struct Revenue {
-        address     staker;
-        address     crypto;
-        uint256     amount;
-        uint        rewardId;
-    }
-    
-    Deposit[]                                           public  deposits;
     Reward[]                                            public  rerwards;
-    Revenue[]                                           public  revenues;
+    uint                                                public  rewardNo;
+    uint256[]                                           public  totals;     //  rewardid    =>  total deposit
 
-    mapping(address => mapping(uint =>  uint))          public  stakers;    //  staker      =>  rewardId    =>  amount
-    mapping(address => mapping(address =>  uint256))    public  totals;     //  staker      =>  token       =>  reward amount
+    mapping(address => uint)                            public  stakerDeposits;
+    mapping(address => mapping(uint => Reward))         public  stakerRewards;    //  staker      =>  rewardId    =>  amount,crypto
 
     /** management */
     address                         private _FBL;
+    uint                            private _FBLDecimal;
     address                         private _owner;
     bool                            private _ownerLock = true;
     mapping(address => bool)        private _operators;
@@ -56,29 +45,41 @@ contract ShareRevenue {
     }
 
     /** operator */    
-    function opSetReward(address crypto_, uint256 amount_) public chkOperator {
+    function opSetReward(address crypto_, uint256 amount_, uint ratio_) public chkOperator {
+        _cryptoTransferFrom(msg.sender, address(this), crypto_, amount_);
         Reward memory vRew;
         vRev.crypto            =   crypto_;
         vRev.amount            =   amount_;
         vRev.dateFrom          =   block.timestamp;
+        vRev.ratio             =   ratio_;
         rewards.push(vRew);
+        rewardNo++;
     }
-    
+
     /** staker */    
     function setDeposit(uint256 amount_) public {
-        Deposit memory vDep;
-        vDep.staker            =   msg.sender;
-        vDep.amount            =   amount_;
-        vDep.dateFrom          =   block.timestamp;
-        deposits.push(vDep);
-        stakers[msg.sender][rewards.length] += amount_;
+        _cryptoTransferFrom(msg.sender, address(this), _FBL, amount_);
+        stakerDeposits[msg.sender]                  += amount_;
+        totals[rewardNo]                            += amount_;
     }
-    function getReward(uint rewardId_) public {
-        Revenue memory vRev;
-        vRev.staker            =   msg.sender;
-        vRev.amount            =   amount_;
-        vRev.dateFrom          =   block.timestamp;
-        deposits.push(vDep);
+    function getDeposit(uint256 amount_) public {
+        require(stakerDeposits[msg.sender] > amount_,"invalid amount");
+        stakerDeposits[msg.sender]                  -= amount_;
+        totals[rerwardNo]                           -= amount_;
+        _cryptoTransfer(msg.sender, _FBL, amount_);
+    }
+    function getRevenue() public {
+        uint rewardNow = rerwardNo-1;
+        require(stakerRewards[msg.sender][rerwardNow].dateFrom == 0,"got revenue");
+        
+        stakerRewards[msg.sender][rerwardNow].amount     = (stakerDeposits[msg.sender]/_FBLDecimal)*rewards[rerwardNow].ratio;
+        require(rerwards[rewardNow].amount > stakerRewards[msg.sender][rerwardNow].amount,"empty");
+        stakerRewards[msg.sender][rerwardNow].crypto     = rewards[rerwardNow].crypto;
+        stakerRewards[msg.sender][rerwardNow].dateFrom   = block.timestamp;
+        stakerRewards[msg.sender][rerwardNow].ratio      = rewards[rerwardNow].ratio;
+        
+        rewards[rerwardNow].amount   -= stakerRewards[msg.sender][rerwardNow].amount;
+        _cryptoTransfer(msg.sender, rewards[rerwardNow].crypto, stakerRewards[msg.sender][rerwardNow].amount);
     }
  
     /** payment */    
@@ -93,7 +94,6 @@ contract ShareRevenue {
         IERC20(crypto_).transferFrom(from_, to_, amount_);
         return 2;
     }
-    
     function _cryptoTransfer(address to_,  address crypto_, uint256 amount_) internal returns (uint256) {
         if(amount_ == 0) return 0;
         // use native

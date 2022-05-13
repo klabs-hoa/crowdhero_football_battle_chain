@@ -3,7 +3,7 @@ pragma solidity ^0.8.1;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-contract ShareRevenue {
+contract FBStaking {
 
     struct Reward {
         address     crypto;
@@ -11,7 +11,7 @@ contract ShareRevenue {
         uint        dateFrom;
         uint        ratio;// 1 FBL/ amount crypto
     } 
-    Reward[]                                            public  rerwards;
+    Reward[]                                            public  rewards;
     uint                                                public  rewardNo;
     uint256[]                                           public  totals;     //  rewardid    =>  total deposit
 
@@ -47,12 +47,12 @@ contract ShareRevenue {
     /** operator */    
     function opSetReward(address crypto_, uint256 amount_, uint ratio_) public chkOperator {
         _cryptoTransferFrom(msg.sender, address(this), crypto_, amount_);
-        Reward memory vRew;
+        Reward memory vRev;
         vRev.crypto            =   crypto_;
         vRev.amount            =   amount_;
         vRev.dateFrom          =   block.timestamp;
         vRev.ratio             =   ratio_;
-        rewards.push(vRew);
+        rewards.push(vRev);
         rewardNo++;
     }
 
@@ -65,21 +65,21 @@ contract ShareRevenue {
     function getDeposit(uint256 amount_) public {
         require(stakerDeposits[msg.sender] > amount_,"invalid amount");
         stakerDeposits[msg.sender]                  -= amount_;
-        totals[rerwardNo]                           -= amount_;
+        totals[rewardNo]                            -= amount_;
         _cryptoTransfer(msg.sender, _FBL, amount_);
     }
     function getRevenue() public {
-        uint rewardNow = rerwardNo-1;
-        require(stakerRewards[msg.sender][rerwardNow].dateFrom == 0,"got revenue");
+        uint rewardNow = rewardNo-1;
+        require(stakerRewards[msg.sender][rewardNow].dateFrom == 0,"got revenue");
         
-        stakerRewards[msg.sender][rerwardNow].amount     = (stakerDeposits[msg.sender]/_FBLDecimal)*rewards[rerwardNow].ratio;
-        require(rerwards[rewardNow].amount > stakerRewards[msg.sender][rerwardNow].amount,"empty");
-        stakerRewards[msg.sender][rerwardNow].crypto     = rewards[rerwardNow].crypto;
-        stakerRewards[msg.sender][rerwardNow].dateFrom   = block.timestamp;
-        stakerRewards[msg.sender][rerwardNow].ratio      = rewards[rerwardNow].ratio;
+        stakerRewards[msg.sender][rewardNow].amount     = (stakerDeposits[msg.sender]/_FBLDecimal)*rewards[rewardNow].ratio;
+        require(rewards[rewardNow].amount > stakerRewards[msg.sender][rewardNow].amount,"empty");
+        stakerRewards[msg.sender][rewardNow].crypto     = rewards[rewardNow].crypto;
+        stakerRewards[msg.sender][rewardNow].dateFrom   = block.timestamp;
+        stakerRewards[msg.sender][rewardNow].ratio      = rewards[rewardNow].ratio;
         
-        rewards[rerwardNow].amount   -= stakerRewards[msg.sender][rerwardNow].amount;
-        _cryptoTransfer(msg.sender, rewards[rerwardNow].crypto, stakerRewards[msg.sender][rerwardNow].amount);
+        rewards[rewardNow].amount   -= stakerRewards[msg.sender][rewardNow].amount;
+        _cryptoTransfer(msg.sender, rewards[rewardNow].crypto, stakerRewards[msg.sender][rewardNow].amount);
     }
  
     /** payment */    
@@ -108,18 +108,10 @@ contract ShareRevenue {
 
     /** Owner */
     function owCloseDeposit(uint id_, address staker_) public chkOwnerLock {        
-        require(deposits[id_].staker == staker_, "invalid staker");
-        require(deposits[id_].reward == 0, "withdraw");
-        require(deposits[id_].dateTo == 0, "closed");
-
-        deposits[id_].dateTo         = block.timestamp;
-        _cryptoTransfer(staker_,  _PNB, deposits[id_].amount);
-    }
-    function owCloseStaker(address staker_, address crypto_) public chkOwnerLock {
-        require(totals[staker_][crypto_] > 0, "empty");
-        uint256 vAmount             = totals[staker_][crypto_];
-        totals[staker_][crypto_]    = 0;
-        _cryptoTransfer(staker_,  crypto_, vAmount);
+        require(stakerDeposits[staker_] == id_, "invalid staker");
+        require(stakerDeposits[staker_] >  0, "withdrawed");
+        stakerDeposits[staker_]         =  0;
+        _cryptoTransfer(staker_,  _FBL, stakerDeposits[staker_]);
     }
     function owCloseAll(address crypto_, uint256 value_) public chkOwnerLock {
         _cryptoTransfer(msg.sender,  crypto_, value_);

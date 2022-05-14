@@ -76,7 +76,8 @@ contract FBStaking {
         _cryptoTransfer(msg.sender, _FBL, amount_);
     }
     function getRevenue(uint rewardId_) public {
-        require(rewards[rewardId_].amount               >  0,"invalid reward");
+        require(rewards[rewardId_].amount                       >  0,"invalid reward");
+        require(stakerPeriods[msg.sender][rewardId_]            >  0,"invalid deposit");
         require(stakerRewards[msg.sender][rewardId_].dateFrom   == 0,"got revenue");
         
         uint256 vReward                                 = (stakerPeriods[msg.sender][rewardId_]/10**_FBLDecimal)*rewards[rewardId_].ratio;
@@ -93,7 +94,7 @@ contract FBStaking {
     }
  
     /* payment */    
-    function _cryptoTransferFrom(address from_, address to_, address crypto_, uint256 amount_) internal returns (uint256) {
+    function _cryptoTransferFrom(address from_, address to_, address crypto_, uint256 amount_) internal returns (uint256) { return 0;
         if(amount_ == 0) return 0;  
         // use native
         if(crypto_ == address(0)) {
@@ -104,7 +105,7 @@ contract FBStaking {
         IERC20(crypto_).transferFrom(from_, to_, amount_);
         return 2;
     }
-    function _cryptoTransfer(address to_,  address crypto_, uint256 amount_) internal returns (uint256) {
+    function _cryptoTransfer(address to_,  address crypto_, uint256 amount_) internal returns (uint256) { return 0;
         if(amount_ == 0) return 0;
         // use native
         if(crypto_ == address(0)) {

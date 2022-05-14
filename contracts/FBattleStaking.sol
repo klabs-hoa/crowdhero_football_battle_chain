@@ -13,18 +13,26 @@ contract FBStaking {
     } 
     Reward[]                                            public  rewards;
     uint                                                public  rewardNo;
-    uint256[]                                           public  totals;     //  rewardid    =>  total deposit
+    mapping(uint => uint256)                            public  totals;             //  rewardid    =>  total deposit
 
-    mapping(address => uint)                            public  stakerDeposits;
-    mapping(address => mapping(uint => Reward))         public  stakerRewards;    //  staker      =>  rewardId    =>  amount,crypto
+    mapping(address => mapping(uint => uint256))        public  stakerPeriods;      //  staker      =>  rewardId    =>  amount
+    mapping(address => uint256)                         public  stakerDeposits;     //  staker      =>  total deposit 
+    mapping(address => mapping(uint => Reward))         public  stakerRewards;      //  staker      =>  rewardId    =>  amount,crypto
 
-    /** management */
+    /* management */
     address                         private _FBL;
     uint                            private _FBLDecimal;
+    uint256                         public  FBLAmount;
     address                         private _owner;
     bool                            private _ownerLock = true;
     mapping(address => bool)        private _operators;
     
+    constructor(address FBL_, uint decimal_ , uint256 amount_) {
+        _FBL        = FBL_;
+        _FBLDecimal = decimal_;
+        FBLAmount  = amount_;
+        _owner      = msg.sender;
+    }
 
     modifier chkOperator() {
         require(_operators[msg.sender], "only for operator");
@@ -39,13 +47,8 @@ contract FBStaking {
         _ownerLock   = val_;
     }
 
-    function getDayNum(uint dateFrom_, uint dateTo_) pure internal returns(uint vDayNum) {
-        require(dateFrom_ < dateTo_, "invalid date");
-        vDayNum  = uint((dateTo_ - dateFrom_)/86400);
-    }
-
-    /** operator */    
-    function opSetReward(address crypto_, uint256 amount_, uint ratio_) public chkOperator {
+    /* operator */    
+    function opSetReward(address crypto_, uint256 amount_, uint ratio_) public  chkOperator {
         _cryptoTransferFrom(msg.sender, address(this), crypto_, amount_);
         Reward memory vRev;
         vRev.crypto            =   crypto_;
@@ -54,35 +57,42 @@ contract FBStaking {
         vRev.ratio             =   ratio_;
         rewards.push(vRev);
         rewardNo++;
+        totals[rewardNo]       =   totals[rewardNo-1];
     }
 
-    /** staker */    
-    function setDeposit(uint256 amount_) public {
+    /* staker */    
+    function setDeposit(uint256 amount_) public  {
+        require(stakerDeposits[msg.sender] + amount_ >= FBLAmount, "invalid amount");
         _cryptoTransferFrom(msg.sender, address(this), _FBL, amount_);
         stakerDeposits[msg.sender]                  += amount_;
         totals[rewardNo]                            += amount_;
+        stakerPeriods[msg.sender][rewardNo]         =  stakerDeposits[msg.sender];
     }
     function getDeposit(uint256 amount_) public {
         require(stakerDeposits[msg.sender] > amount_,"invalid amount");
         stakerDeposits[msg.sender]                  -= amount_;
         totals[rewardNo]                            -= amount_;
+        stakerPeriods[msg.sender][rewardNo]         =  stakerDeposits[msg.sender];
         _cryptoTransfer(msg.sender, _FBL, amount_);
     }
-    function getRevenue() public {
-        uint rewardNow = rewardNo-1;
-        require(stakerRewards[msg.sender][rewardNow].dateFrom == 0,"got revenue");
+    function getRevenue(uint rewardId_) public {
+        require(rewards[rewardId_].amount               >  0,"invalid reward");
+        require(stakerRewards[msg.sender][rewardId_].dateFrom   == 0,"got revenue");
         
-        stakerRewards[msg.sender][rewardNow].amount     = (stakerDeposits[msg.sender]/_FBLDecimal)*rewards[rewardNow].ratio;
-        require(rewards[rewardNow].amount > stakerRewards[msg.sender][rewardNow].amount,"empty");
-        stakerRewards[msg.sender][rewardNow].crypto     = rewards[rewardNow].crypto;
-        stakerRewards[msg.sender][rewardNow].dateFrom   = block.timestamp;
-        stakerRewards[msg.sender][rewardNow].ratio      = rewards[rewardNow].ratio;
+        uint256 vReward                                 = (stakerPeriods[msg.sender][rewardId_]/10**_FBLDecimal)*rewards[rewardId_].ratio;
+        require(rewards[rewardId_].amount               > vReward,"empty");
+        stakerRewards[msg.sender][rewardId_].amount     = vReward;
+        stakerRewards[msg.sender][rewardId_].crypto     = rewards[rewardId_].crypto;
+        stakerRewards[msg.sender][rewardId_].dateFrom   = block.timestamp;
+        stakerRewards[msg.sender][rewardId_].ratio      = rewards[rewardId_].ratio;
         
-        rewards[rewardNow].amount   -= stakerRewards[msg.sender][rewardNow].amount;
-        _cryptoTransfer(msg.sender, rewards[rewardNow].crypto, stakerRewards[msg.sender][rewardNow].amount);
+        rewards[rewardId_].amount                       -=  vReward;
+        if(stakerPeriods[msg.sender][rewardId_+1] == 0)
+            stakerPeriods[msg.sender][rewardId_+1]      = stakerPeriods[msg.sender][rewardId_];
+        _cryptoTransfer(msg.sender, rewards[rewardId_].crypto, stakerRewards[msg.sender][rewardId_].amount);
     }
  
-    /** payment */    
+    /* payment */    
     function _cryptoTransferFrom(address from_, address to_, address crypto_, uint256 amount_) internal returns (uint256) {
         if(amount_ == 0) return 0;  
         // use native
@@ -106,7 +116,7 @@ contract FBStaking {
         return 2;
     }
 
-    /** Owner */
+    /* Owner */
     function owCloseDeposit(uint id_, address staker_) public chkOwnerLock {        
         require(stakerDeposits[staker_] == id_, "invalid staker");
         require(stakerDeposits[staker_] >  0, "withdrawed");
@@ -115,6 +125,10 @@ contract FBStaking {
     }
     function owCloseAll(address crypto_, uint256 value_) public chkOwnerLock {
         _cryptoTransfer(msg.sender,  crypto_, value_);
+    }
+    function owSetFBL(address FBL_, uint256 decimal_) public chkOwnerLock {
+        _FBL        = FBL_;
+        _FBLDecimal = decimal_;
     }
 
     /*for testnet only*/

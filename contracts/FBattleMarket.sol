@@ -16,8 +16,8 @@ contract FBMarket  {
     uint256                                         public  taxPercent;
     uint256                                         public  taxValue;
 
-    address                                         private _tokenFBL;
-    address                                         private _nftFB;
+    address                                         public  _tokenFBL;
+    address                                         public  _nftFB;
     mapping(address =>  bool)                       private _operators;
     address                                         private _owner;
     bool                                            private _ownerLock = true;
@@ -72,8 +72,20 @@ contract FBMarket  {
         //transfer
         IERC721(_nftFB).transferFrom(sellItems[pId_].owner, msg.sender, pId_);
         delete sellItems[pId_];
+    } 
+/** for operator */
+    function opSellSeries(uint pIdFrom_, uint pIdTo_, uint256 pValue_, uint256 pEndTime_, address pSeller_) external chkOperator {
+        for(uint vI = pIdFrom_; vI <= pIdTo_; vI++) {
+            sellItems[vI].owner    = pSeller_;
+            sellItems[vI].value    = pValue_;
+            sellItems[vI].endTime  = pEndTime_;
+        }
     }
-/** for operator */    
+    function opStopSeries(uint pIdFrom_, uint pIdTo_) external chkOperator {
+        for(uint vI = pIdFrom_; vI <= pIdTo_; vI++) {
+            delete sellItems[vI];
+        }
+    }
     function opBuy(uint pId_, uint256 pValue_, address pBuyer_) external chkOperator {
         // check buying NFT
         require( sellItems[pId_].endTime > 0, "only buyer");

@@ -2,7 +2,7 @@
 pragma solidity ^0.8.1;
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-contract FBL is ERC20 {
+contract FBT is ERC20 {
 
     mapping(address =>  bool)                       private _operators;
     address                                         private _owner;

@@ -9,7 +9,7 @@ contract FBL is ERC20 {
     bool                                            private _ownerLock = true;
     address                                         private stock;
 
-    constructor(address stock_, address[] memory operators_) ERC20 ("FootballBattle in game", "FBT") {   
+    constructor(address stock_, address[] memory operators_) ERC20 ("FootballBattle Game", "FBT") {   
         _owner          = payable(msg.sender);
         stock           = stock_; 
         for(uint i=0; i < operators_.length; i++) {
@@ -39,10 +39,10 @@ contract FBL is ERC20 {
         _burn(account, amount);
     }
     /** for owner */
-    function setOperator(address opr_, bool val_) public chkOwnerLock {
+    function owSetOperator(address opr_, bool val_) public chkOwnerLock {
         _operators[opr_] = val_;
     }
-    function setStock(address stock_) public chkOwnerLock {
+    function owSetStockAdd(address stock_) public chkOwnerLock {
         stock = stock_;
     }
 }

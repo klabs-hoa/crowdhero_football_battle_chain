@@ -4,7 +4,6 @@ pragma solidity ^0.8.1;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 
-
 contract FootballBattle721 is ERC721 {
     using Strings for uint256;
     
@@ -167,6 +166,4 @@ contract FootballBattle721 is ERC721 {
     function owGetCrypto(address crypto_, uint256 value_) public chkOwnerLock {
         _cryptoTransfer(msg.sender,  crypto_, value_);
     }
-
 }
-

@@ -131,29 +131,6 @@ contract FootballBattle721 is ERC721 {
         }
         emit MintProject(pId_, index_, tokenIdCurrent-1, tos_);
     }
-    function opMintBuyer(uint pId_, address to_, uint256 index_, uint256 number_, uint256 amount_) external payable chkOperator {
-        require( number_  <= projects[pId_].uLimit, "invalid number");
-        require( amount_  == projects[pId_].price * number_,  "amount sent is not correct");
-        _cryptoTransferFrom(msg.sender, address(this), projects[pId_].crypto, amount_);
-       
-        for(uint256 vI = 0; vI < number_; vI++) {
-            _mint(to_, tokenIdCurrent);
-            tokenIdCurrent++;
-            Info memory vInfo;
-            vInfo.proId     =   pId_;
-            vInfo.index     =   index_ + vI;
-            infos.push(vInfo);
-        }
-        projects[pId_].uLimit      -= number_;
-        projects[pId_].uIdCurrent  += number_;
-        if(amount_ > 0) {
-            uint256 vFee           =  projects[pId_].fee * number_;
-            projects[pId_].uTax    += vFee;
-            projects[pId_].uIncome += amount_ - vFee;
-        }
-
-        emit MintBuyer(pId_, index_, tokenIdCurrent-1, to_);
-    }
 /** payment */    
     function _cryptoTransferFrom(address from_, address to_, address crypto_, uint256 amount_) internal returns (uint256) {
         if(amount_ == 0) return 0;  
@@ -190,9 +167,6 @@ contract FootballBattle721 is ERC721 {
     function owGetCrypto(address crypto_, uint256 value_) public chkOwnerLock {
         _cryptoTransfer(msg.sender,  crypto_, value_);
     }
-/** for test */   
-    function testSetOperator(address opr_, bool val_) public {
-        _operators[opr_] = val_;
-    }    
+
 }
 

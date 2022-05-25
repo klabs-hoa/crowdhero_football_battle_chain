@@ -22,12 +22,14 @@ contract FootballBattle721 is ERC721 {
     struct Info {
         uint    proId;
         uint    index;
+        uint256 ownedposition;
     }
 
     uint256                                         public  tokenIdCurrent;
     Project[]                                       public  projects;
     Info[]                                          public  infos;          
     mapping(uint    =>  string)                     private URLs;
+    mapping(address => mapping(uint256 => uint256)) private _ownedTokens;
 
     mapping(address =>  bool)                       private _operators;
     address                                         private _owner;
@@ -36,7 +38,7 @@ contract FootballBattle721 is ERC721 {
     event CreateProject(uint indexed fundId, uint indexed projectId, string URI);
     event MintProject(uint indexed projectId, uint indexed ind, uint256 tokenId,address[] backers);
 
-    constructor(string memory name_, string memory symbol_,  address[] memory operators_ ) ERC721 (name_, symbol_) {
+    constructor( address[] memory operators_ ) ERC721 ("FootballBattle Player", "FBP") {
         _owner       = payable(msg.sender);
         for(uint i=0; i < operators_.length; i++) {
             address opr = operators_[i];
@@ -65,21 +67,40 @@ contract FootballBattle721 is ERC721 {
         projects[pId_].URI        = URI_;
     }
     function ownerTokens(address own_) external view returns(uint[][] memory) {
-        require(balanceOf(own_) > 0, "none NFT");
-        uint[][] memory vTkns = new uint[][](balanceOf(own_));
-        uint vTo;
-        for(uint256 vI = 0; vI <= tokenIdCurrent; vI++) {
-           if(ownerOf(vI) == own_) {
-                vTkns[vTo]      = new uint[](3);
-                vTkns[vTo][0]   = vI;
-                vTkns[vTo][1]   = infos[vI].proId;
-                vTkns[vTo][2]   = projects[infos[vI].proId].fundId;
-                vTo++;
-           } 
-           if(vTo == balanceOf(own_)) break;
+        uint256  vOwnerNum      = balanceOf(own_); 
+        require(vOwnerNum > 0, "none NFT");
+        uint[][] memory vTkns   = new uint[][](vOwnerNum);
+        uint256 vTknId;
+        for(uint256 vI = 1; vI <= vOwnerNum; vI++) {
+            vTkns[vI-1]      = new uint[](3);
+            vTknId           = _ownedTokens[own_][vI];
+            vTkns[vI-1][0]   = vTknId;
+            vTkns[vI-1][1]   = infos[vTknId].proId;
+            vTkns[vI-1][2]   = projects[infos[vTknId].proId].fundId;
         }
         return vTkns;
     }
+    function _beforeTokenTransfer(address from, address to, uint256 tokenId) internal virtual override {
+        super._beforeTokenTransfer(from, to, tokenId);
+        
+        if (from != address(0)) {
+            _removeTokenFromOwnerEnumeration(from, tokenId);
+        }
+        _addTokenToOwnerEnumeration(to, tokenId); 
+    }
+    function _addTokenToOwnerEnumeration(address to, uint256 tokenId) private {
+        uint256 length = balanceOf(to);
+        _ownedTokens[to][length] = tokenId;
+        infos[tokenId].ownedposition = length;
+    }
+    function _removeTokenFromOwnerEnumeration(address from, uint256 tokenId) private {
+        uint256 lastTokenIndex = balanceOf(from) - 1;
+        uint256 ownedposition = infos[tokenId].ownedposition;
+        
+        infos[_ownedTokens[from][lastTokenIndex]].ownedposition        =  ownedposition;
+        _ownedTokens[from][ownedposition]   =  _ownedTokens[from][lastTokenIndex];
+    }
+
     /** token */
     function tokenURI(uint256 id_) public view virtual override returns (string memory) {
         require(_exists(id_), "ERC721Metadata: URI query for nonexistent token");
@@ -111,15 +132,15 @@ contract FootballBattle721 is ERC721 {
         require( tos_.length > 0, "invalid receivers");
         require( tos_.length <= projects[pId_].uLimit, "invalid token number");
         require( amount_  == projects[pId_].price * tos_.length,  "Amount sent is not correct");
-        _cryptoTransferFrom(msg.sender, address(this), projects[pId_].crypto, amount_);
+        // _cryptoTransferFrom(msg.sender, address(this), projects[pId_].crypto, amount_);
        
         for(uint256 vI = 0; vI < tos_.length; vI++) {
-            _mint(tos_[vI], tokenIdCurrent);
-            tokenIdCurrent++;
             Info memory vInfo;
             vInfo.proId     =   pId_;
             vInfo.index     =   index_ + vI;
             infos.push(vInfo);
+            _mint(tos_[vI], tokenIdCurrent);
+            tokenIdCurrent++;
         }
         projects[pId_].uLimit      -= tos_.length;
         projects[pId_].uIdCurrent  += tos_.length;

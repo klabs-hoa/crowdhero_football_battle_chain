@@ -89,7 +89,7 @@ contract FootballBattle721 is ERC721 {
         _addTokenToOwnerEnumeration(to, tokenId); 
     }
     function _addTokenToOwnerEnumeration(address to, uint256 tokenId) private {
-        uint256 length = balanceOf(to);
+        uint256 length = balanceOf(to)+1;
         _ownedTokens[to][length] = tokenId;
         infos[tokenId].ownedposition = length;
     }

@@ -37,8 +37,8 @@ contract FBL is ERC20 {
         _mint(budgets[name_].receiver, budgets[name_].withdrawable);
     }
 
-    function burn(address account, uint256 amount) public {
-        _burn(account, amount);
+    function burn(uint256 amount) public {
+        _burn(msg.sender, amount);
     }
     function transferTrack(address recipient, uint256 amount, string memory code) public returns (bool) {
         _transfer(_msgSender(), recipient, amount);

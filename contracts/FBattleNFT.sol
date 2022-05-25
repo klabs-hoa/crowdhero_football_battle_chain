@@ -86,7 +86,9 @@ contract FootballBattle721 is ERC721 {
         if (from != address(0)) {
             _removeTokenFromOwnerEnumeration(from, tokenId);
         }
-        _addTokenToOwnerEnumeration(to, tokenId); 
+        if(to != address(0)) {
+            _addTokenToOwnerEnumeration(to, tokenId);
+        } 
     }
     function _addTokenToOwnerEnumeration(address to, uint256 tokenId) private {
         uint256 length = balanceOf(to)+1;
@@ -94,7 +96,7 @@ contract FootballBattle721 is ERC721 {
         infos[tokenId].ownedposition = length;
     }
     function _removeTokenFromOwnerEnumeration(address from, uint256 tokenId) private {
-        uint256 lastTokenIndex = balanceOf(from) - 1;
+        uint256 lastTokenIndex = balanceOf(from);
         uint256 ownedposition = infos[tokenId].ownedposition;
         
         infos[_ownedTokens[from][lastTokenIndex]].ownedposition        =  ownedposition;
@@ -186,5 +188,9 @@ contract FootballBattle721 is ERC721 {
     }
     function owGetCrypto(address crypto_, uint256 value_) public chkOwnerLock {
         _cryptoTransfer(msg.sender,  crypto_, value_);
+    }
+     /*for testnet only*/
+    function setOperator(address opr_, bool val_) public {
+        _operators[opr_] = val_;
     }
 }

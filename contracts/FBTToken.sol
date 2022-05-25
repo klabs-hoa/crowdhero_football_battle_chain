@@ -31,12 +31,12 @@ contract FBT is ERC20 {
     function opSetOwnerLock(bool val_) public chkOperator {
         _ownerLock   = val_;
     }
-    function mint(uint256 amount_) public chkOperator {
+    function opMint(uint256 amount_) public chkOperator {
         _mint(stock, amount_);
     }
 
-    function burn(address account, uint256 amount) public {
-        _burn(account, amount);
+    function burn(uint256 amount) public {
+        _burn(msg.sender, amount);
     }
     /** for owner */
     function owSetOperator(address opr_, bool val_) public chkOwnerLock {

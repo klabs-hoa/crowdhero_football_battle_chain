@@ -134,7 +134,7 @@ contract FootballBattle721 is ERC721 {
         require( tos_.length > 0, "invalid receivers");
         require( tos_.length <= projects[pId_].uLimit, "invalid token number");
         require( amount_  == projects[pId_].price * tos_.length,  "Amount sent is not correct");
-        // _cryptoTransferFrom(msg.sender, address(this), projects[pId_].crypto, amount_);
+        _cryptoTransferFrom(msg.sender, address(this), projects[pId_].crypto, amount_);
        
         for(uint256 vI = 0; vI < tos_.length; vI++) {
             Info memory vInfo;

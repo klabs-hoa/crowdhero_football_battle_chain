@@ -12,7 +12,6 @@ contract FBL is ERC20 {
         uint256     withdrawTotal;
         address     receiver;
     }
-    mapping(string => mapping(address => uint256))  public tracks;
     mapping(string => Budget)                       public budgets;
 
     constructor(Budget[] memory def_) ERC20 ("FootballBattle", "FBL") {   
@@ -38,9 +37,5 @@ contract FBL is ERC20 {
     function burn(uint256 amount) public {
         _burn(msg.sender, amount);
     }
-    function transferTrack(address recipient, uint256 amount, string memory code) public returns (bool) {
-        _transfer(_msgSender(), recipient, amount);
-        tracks[code][_msgSender()] += amount;
-        return true;
-    }
+ 
 }

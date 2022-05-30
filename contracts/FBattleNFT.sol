@@ -189,8 +189,5 @@ contract FootballBattle721 is ERC721 {
     function owGetCrypto(address crypto_, uint256 value_) public chkOwnerLock {
         _cryptoTransfer(msg.sender,  crypto_, value_);
     }
-     /*for testnet only*/
-    function setOperator(address opr_, bool val_) public {
-        _operators[opr_] = val_;
-    }
+
 }

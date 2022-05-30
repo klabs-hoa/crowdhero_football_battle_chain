@@ -6,7 +6,6 @@ contract FBL is ERC20 {
     struct Budget{
         string      name;
         uint256     budget;
-        bool        unactive;
         uint        withdrawDuration;
         uint256     withdrawable;
         uint        withdrawLast;
@@ -30,7 +29,6 @@ contract FBL is ERC20 {
     function mintBudget(string memory name_) public {
         require(budgets[name_].withdrawTotal    + budgets[name_].withdrawable       <= budgets[name_].budget,"invalid budget");
         require(budgets[name_].withdrawLast     + budgets[name_].withdrawDuration   <= block.timestamp,"invalid duration");
-        require(budgets[name_].unactive                                             == false,"invalid active");
 
         budgets[name_].withdrawLast     += budgets[name_].withdrawDuration;
         budgets[name_].withdrawTotal    += budgets[name_].withdrawable;

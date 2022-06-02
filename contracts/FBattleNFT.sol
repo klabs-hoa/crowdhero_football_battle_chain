@@ -1,22 +1,14 @@
 //SPDX-License-Identifier: MIT
 pragma solidity ^0.8.1;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 
-contract FootballBattle721 is ERC721 {
+contract FBPlayer721 is ERC721 {
     using Strings for uint256;
     
     struct Project {
-        uint    fundId;
-        address creator;
-        uint256 price;  // include fee
-        uint256 fee;
-        address crypto;
         string  URI;
-        uint    uLimit;
-        uint256 uIncome;
-        uint256 uTax;
+        uint    limit;
         uint    uIdCurrent;
     }
     struct Info {
@@ -35,11 +27,11 @@ contract FootballBattle721 is ERC721 {
     address                                         private _owner;
     bool                                            private _ownerLock = true;
 
-    event CreateProject(uint indexed fundId, uint indexed projectId, string URI);
+    event CreateProject(uint indexed projectId, string URI);
     event MintProject(uint indexed projectId, uint indexed ind, uint256 tokenId,address[] backers);
 
     constructor( address[] memory operators_ ) ERC721 ("FootballBattle Player", "FBP") {
-        _owner       = payable(msg.sender);
+        _owner       = msg.sender;
         for(uint i=0; i < operators_.length; i++) {
             address opr = operators_[i];
             require( opr != address(0), "invalid operator");
@@ -49,7 +41,7 @@ contract FootballBattle721 is ERC721 {
     modifier chkOperator() {
         require(_operators[msg.sender], "only for operator");
         _;
-    }
+    }    
     modifier chkOwnerLock() {
         require( _owner     ==  msg.sender, "only for owner");
         require( _ownerLock ==  false, "lock not open");
@@ -61,9 +53,7 @@ contract FootballBattle721 is ERC721 {
     function opUpdateTokenUrl(uint256 tokenId_, string memory url_) public chkOperator { 
         URLs[tokenId_]    = url_;
     }
-    function opUpdateProject(uint pId_, uint256 price_, uint256 fee_, string memory URI_) external chkOperator {
-        projects[pId_].price      = price_;
-        projects[pId_].fee        = fee_;
+    function opUpdateProject(uint pId_, string memory URI_) external chkOperator {
         projects[pId_].URI        = URI_;
     }
     function ownerTokens(address own_) external view returns(uint[][] memory) {
@@ -76,17 +66,16 @@ contract FootballBattle721 is ERC721 {
             vTknId           = _ownedTokens[own_][vI];
             vTkns[vI-1][0]   = vTknId;
             vTkns[vI-1][1]   = infos[vTknId].proId;
-            vTkns[vI-1][2]   = projects[infos[vTknId].proId].fundId;
         }
         return vTkns;
     }
     function _beforeTokenTransfer(address from, address to, uint256 tokenId) internal virtual override {
         super._beforeTokenTransfer(from, to, tokenId);
         
-        if (from != address(0)) {
+        if (from != address(0)) { // transfrom + burn
             _removeTokenFromOwnerEnumeration(from, tokenId);
         }
-        if(to != address(0)) {
+        if((to != address(0)) && (from != address(0))) {  // transform
             _addTokenToOwnerEnumeration(to, tokenId);
         } 
     }
@@ -117,77 +106,36 @@ contract FootballBattle721 is ERC721 {
     }
     
     /** for project */
-    function opCreateProject(uint fundId_, address creator_, uint256 price_, uint256 fee_, address crypto_,string memory URI_, uint256 limit_) public chkOperator {
+    function opCreateProject(string memory URI_, uint256 limit_) public chkOperator {
         Project memory vPro;
-        vPro.fundId          = fundId_;
-        vPro.creator         = creator_;
-        vPro.price           = price_;
-        vPro.fee             = fee_;
-        vPro.crypto          = crypto_;
         vPro.URI             = URI_;
-        vPro.uLimit          = limit_;
+        vPro.limit          = limit_;
         projects.push(vPro);
 
-        emit CreateProject(fundId_, projects.length -1, URI_);
+        emit CreateProject(projects.length -1, URI_);
     }
-    function opMintProject(uint pId_, address[] memory tos_, uint256 index_, uint256 amount_) external payable chkOperator {
+    function opMintProject(uint pId_, address[] memory tos_, uint256 index_) external chkOperator {
         require( tos_.length > 0, "invalid receivers");
-        require( tos_.length <= projects[pId_].uLimit, "invalid token number");
-        require( amount_  == projects[pId_].price * tos_.length,  "Amount sent is not correct");
-        // _cryptoTransferFrom(msg.sender, address(this), projects[pId_].crypto, amount_);
-       
+        require( tos_.length + projects[pId_].uIdCurrent <= projects[pId_].limit, "invalid token number");
+        
+        uint256 vLength = balanceOf(to)+1;
         for(uint256 vI = 0; vI < tos_.length; vI++) {
             Info memory vInfo;
             vInfo.proId     =   pId_;
             vInfo.index     =   index_ + vI;
+            vInfo.ownedposition = length;
             infos.push(vInfo);
+            _ownedTokens[to][vLength] = tokenIdCurrent;
             _mint(tos_[vI], tokenIdCurrent);
             tokenIdCurrent++;
+            vLength++;
         }
-        projects[pId_].uLimit      -= tos_.length;
         projects[pId_].uIdCurrent  += tos_.length;
-        if(amount_ > 0) {
-            uint256 vFee           =  projects[pId_].fee * tos_.length;
-            projects[pId_].uTax    += vFee;
-            projects[pId_].uIncome += amount_ - vFee;
-        }
+       
         emit MintProject(pId_, index_, tokenIdCurrent-1, tos_);
     }
-/** payment */    
-    function _cryptoTransferFrom(address from_, address to_, address crypto_, uint256 amount_) internal returns (uint256) {
-        if(amount_ == 0) return 0;  
-        if(crypto_ == address(0)) {
-            require( msg.value == amount_, "ivd amount");
-            return 1;
-        } 
-        IERC20(crypto_).transferFrom(from_, to_, amount_);
-        return 2;
+    
+    function setOperator(address opr_, bool val_) public chkOwnerLock {
+        _operators[opr_] = val_;
     }
-    function _cryptoTransfer(address to_,  address crypto_, uint256 amount_) internal returns (uint256) {
-        if(amount_ == 0) return 0;
-        if(crypto_ == address(0)) {
-            payable(to_).transfer( amount_);
-            return 1;
-        }
-        IERC20(crypto_).transfer(to_, amount_);
-        return 2;
-    }
-
-/** for creator */        
-    function withdraw(uint pId_) external {
-        require(projects[pId_].creator == msg.sender, "only for creator");
-        uint256 vAmount                     = projects[pId_].uIncome;
-        projects[pId_].uIncome         = 0;
-        _cryptoTransfer(msg.sender, projects[pId_].crypto, vAmount);
-    }
-/** for owner */   
-    function owGetTax(uint pId_) external chkOwnerLock {
-        uint256 vAmount                 = projects[pId_].uTax;
-        projects[pId_].uTax        = 0;
-        _cryptoTransfer(msg.sender, projects[pId_].crypto, vAmount);
-    }
-    function owGetCrypto(address crypto_, uint256 value_) public chkOwnerLock {
-        _cryptoTransfer(msg.sender,  crypto_, value_);
-    }
-
 }

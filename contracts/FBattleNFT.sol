@@ -18,7 +18,7 @@ contract FBPlayer721 is ERC721 {
     struct Info {
         uint    proId;
         uint    proIndex;
-        uint256 ownedposition;
+        uint256 ownedPosition;
     }
 
     uint256                                         public  tokenIdCurrent;
@@ -90,13 +90,13 @@ contract FBPlayer721 is ERC721 {
     function _addTokenToOwnerEnumeration(address to, uint256 tokenId) private {
         uint256 length = balanceOf(to)+1;
         _ownedTokens[to][length] = tokenId;
-        infos[tokenId].ownedposition = length;
+        infos[tokenId].ownedPosition = length;
     }
     function _removeTokenFromOwnerEnumeration(address from, uint256 tokenId) private {
         uint256 lastTokenIndex = balanceOf(from);
-        uint256 ownedposition = infos[tokenId].ownedposition;
+        uint256 ownedposition = infos[tokenId].ownedPosition;
         
-        infos[_ownedTokens[from][lastTokenIndex]].ownedposition        =  ownedposition;
+        infos[_ownedTokens[from][lastTokenIndex]].ownedPosition        =  ownedposition;
         _ownedTokens[from][ownedposition]   =  _ownedTokens[from][lastTokenIndex];
     }
 
@@ -148,11 +148,12 @@ contract FBPlayer721 is ERC721 {
         require( number_ > 0, "invalid receivers");
         require( number_ + projects[pId_].uCurrent <= projects[pId_].limit, "invalid token number");
         uint256 vCurrent = projects[pId_].uCurrent;
-
+        uint256 balFrom_ = balanceOf(to_);
         for(uint256 vI = 0; vI < number_; vI++) {
             Info memory vInfo;
             vInfo.proId     =   pId_;
             vInfo.proIndex  =   vCurrent + vI;
+            infos[vI].ownedPosition   =  balFrom_++;
             infos.push(vInfo);
             _mint(to_, tokenIdCurrent);
             tokenIdCurrent++;
@@ -161,11 +162,7 @@ contract FBPlayer721 is ERC721 {
         
         emit MintProject(pId_, number_, tokenIdCurrent-1, to_);
     }
-    function opOwnedToken( address to_, uint pFrom_, uint256 pTo_, uint256 tokenIndexFrom_) public chkOperator {
-        for(uint256 vI = pFrom_; vI <= pTo_; vI++) {
-            _ownedTokens[to_][pFrom_]   =  tokenIndexFrom_ + vI;
-        }
-    }
+  
 /** payment */    
     function _cryptoTransferFrom(address from_, address to_, address crypto_, uint256 amount_) internal returns (uint256) {
         if(amount_ == 0) return 0;  

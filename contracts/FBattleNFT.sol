@@ -62,7 +62,7 @@ contract FBPlayer721 is ERC721 {
         projects[pId_].URI        = URI_;
         projects[pId_].limit      = limit_;
     }
-    function ownerTokens(address own_) external view returns(uint[][] memory) {
+    function ownedTokens(address own_) external view returns(uint[][] memory) {
         uint256  vOwnerNum      = balanceOf(own_); 
         require(vOwnerNum > 0, "none NFT");
         uint[][] memory vTkns   = new uint[][](vOwnerNum);
@@ -75,6 +75,7 @@ contract FBPlayer721 is ERC721 {
         }
         return vTkns;
     }
+    /*
     function _beforeTokenTransfer(address from, address to, uint256 tokenId) internal virtual override {
         super._beforeTokenTransfer(from, to, tokenId);
         
@@ -85,6 +86,7 @@ contract FBPlayer721 is ERC721 {
             _addTokenToOwnerEnumeration(to, tokenId);
         } 
     }
+    */
     function _addTokenToOwnerEnumeration(address to, uint256 tokenId) private {
         uint256 length = balanceOf(to)+1;
         _ownedTokens[to][length] = tokenId;
@@ -110,8 +112,28 @@ contract FBPlayer721 is ERC721 {
         require(msg.sender == ownerOf(id),"not owner");
         _burn(id);
     }
-    
-    /** for project */
+    function mintProject(uint pId_, address to_, uint256 number_, uint256 amount_) external payable {
+        require( number_ > 0, "invalid receivers");
+        require( number_ + projects[pId_].uCurrent <= projects[pId_].limit, "invalid token number");
+        require( amount_  == projects[pId_].price * number_,  "Amount sent is not correct");
+        _cryptoTransferFrom(msg.sender, address(this), projects[pId_].crypto, amount_);
+        uint256 vCurrent = projects[pId_].uCurrent;
+
+        for(uint256 vI = 0; vI < number_; vI++) {
+            Info memory vInfo;
+            vInfo.proId     =   pId_;
+            vInfo.proIndex  =   vCurrent + vI;
+            infos.push(vInfo);
+            _mint(to_, tokenIdCurrent);
+            _addTokenToOwnerEnumeration(to_, tokenIdCurrent);
+            tokenIdCurrent++;
+        }
+        projects[pId_].uCurrent  += number_;
+        projects[pId_].uIncome   += amount_;
+        
+        emit MintProject(pId_, number_, tokenIdCurrent-1, to_);
+    }
+    /** for operator */
     function opCreateProject( uint256 price_, address crypto_,string memory URI_, uint256 limit_) public chkOperator {
         Project memory vPro;
         vPro.price           = price_;
@@ -139,24 +161,10 @@ contract FBPlayer721 is ERC721 {
         
         emit MintProject(pId_, number_, tokenIdCurrent-1, to_);
     }
-    function mintProject(uint pId_, address to_, uint256 number_, uint256 amount_) external payable {
-        require( number_ > 0, "invalid receivers");
-        require( number_ + projects[pId_].uCurrent <= projects[pId_].limit, "invalid token number");
-        require( amount_  == projects[pId_].price * number_,  "Amount sent is not correct");
-        _cryptoTransferFrom(msg.sender, address(this), projects[pId_].crypto, amount_);
-        uint256 vCurrent = projects[pId_].uCurrent;
-
-        for(uint256 vI = 0; vI < number_; vI++) {
-            Info memory vInfo;
-            vInfo.proId     =   pId_;
-            vInfo.proIndex  =   vCurrent + vI;
-            infos.push(vInfo);
-            _mint(to_, tokenIdCurrent);
-            tokenIdCurrent++;
+    function opOwnedToken( address to_, uint pFrom_, uint256 pTo_, uint256 tokenIndexFrom_) public chkOperator {
+        for(uint256 vI = pFrom_; vI <= pTo_; vI++) {
+            _ownedTokens[to_][pFrom_]   =  tokenIndexFrom_ + vI;
         }
-        projects[pId_].uCurrent  += number_;
-        projects[pId_].uIncome += amount_;
-        emit MintProject(pId_, number_, tokenIdCurrent-1, to_);
     }
 /** payment */    
     function _cryptoTransferFrom(address from_, address to_, address crypto_, uint256 amount_) internal returns (uint256) {

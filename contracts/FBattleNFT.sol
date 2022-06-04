@@ -107,8 +107,8 @@ contract FBPlayer721 is ERC721 {
         _removeTokenFromOwnerEnumeration(msg.sender, id);
         _burn(id);
     }
-    function mintSerie(uint pId_, address to_, uint256 number_, uint256 amount_) external payable {
-        // require( amount_ > 0, "invalid amount");//test only
+    function mintSerie(uint pId_, uint256 number_, uint256 amount_) external payable {
+        require( amount_ > 0, "invalid amount");// test only
         require( number_ > 0, "invalid receivers");
         require( number_ + projects[pId_].uCurrent <= projects[pId_].limit, "invalid token number");
         require( amount_  == projects[pId_].price * number_,  "Amount sent is not correct");
@@ -120,14 +120,14 @@ contract FBPlayer721 is ERC721 {
             vInfo.proId     =   pId_;
             vInfo.proIndex  =   vCurrent + vI;
             infos.push(vInfo);            
-            _addTokenToOwnerEnumeration(to_, tokenIdCurrent);
-            _mint(to_, tokenIdCurrent);
+            _addTokenToOwnerEnumeration(msg.sender, tokenIdCurrent);
+            _mint(msg.sender, tokenIdCurrent);
             tokenIdCurrent++;
         }
         projects[pId_].uCurrent  += number_;
         projects[pId_].uIncome   += amount_;
         
-        emit MintProject(pId_, number_, tokenIdCurrent-1, to_);
+        emit MintProject(pId_, number_, tokenIdCurrent-1, msg.sender);
     }
     /** for operator */
     function opCreateProject( uint256 price_, address crypto_,string memory URI_, uint256 limit_) external chkOperator {
@@ -156,7 +156,11 @@ contract FBPlayer721 is ERC721 {
         
         emit MintProject(pId_, number_, tokenIdCurrent-1, to_);
     }
-  
+    function opUpdateInfos(uint256 from_, uint256 to_, uint begin_) external chkOperator {
+        for(uint256 vI = from_; vI < to_; vI++) {
+            infos[vI].ownedPosition = begin_++;
+        }
+    }
 /** payment */    
     function _cryptoTransferFrom(address from_, address to_, address crypto_, uint256 amount_) internal returns (uint256) {
         if(amount_ == 0) return 0;  

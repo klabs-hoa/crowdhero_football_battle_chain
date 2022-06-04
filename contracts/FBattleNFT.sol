@@ -76,10 +76,10 @@ contract FBPlayer721 is ERC721 {
         return vTkns;
     }
     
-    function _transfer(address from, address to, uint256 tokenId) internal virtual override{
-        super._transfer(from, to, tokenId);
-        _removeTokenFromOwnerEnumeration(from, tokenId);
+    function _transfer(address from, address to, uint256 tokenId) internal virtual override{   
+        _removeTokenFromOwnerEnumeration(from, tokenId);     
         _addTokenToOwnerEnumeration(to, tokenId);
+        super._transfer(from, to, tokenId);
     }
  
     function _addTokenToOwnerEnumeration(address to, uint256 tokenId) private {
@@ -90,7 +90,6 @@ contract FBPlayer721 is ERC721 {
     function _removeTokenFromOwnerEnumeration(address from, uint256 tokenId) private {
         uint256 lastTokenIndex = balanceOf(from)-1;
         uint256 ownedposition = infos[tokenId].ownedPosition;
-        
         infos[_ownedTokens[from][lastTokenIndex]].ownedPosition        =  ownedposition;
         _ownedTokens[from][ownedposition]   =  _ownedTokens[from][lastTokenIndex];
     }
@@ -105,11 +104,11 @@ contract FBPlayer721 is ERC721 {
     } 
     function burn( uint256 id) external {
         require(msg.sender == ownerOf(id),"not owner");
-        _burn(id);
         _removeTokenFromOwnerEnumeration(msg.sender, id);
+        _burn(id);
     }
     function mintSerie(uint pId_, address to_, uint256 number_, uint256 amount_) external payable {
-        require( amount_ > 0, "invalid amount");//test only
+        // require( amount_ > 0, "invalid amount");//test only
         require( number_ > 0, "invalid receivers");
         require( number_ + projects[pId_].uCurrent <= projects[pId_].limit, "invalid token number");
         require( amount_  == projects[pId_].price * number_,  "Amount sent is not correct");
@@ -186,6 +185,10 @@ contract FBPlayer721 is ERC721 {
     }
     function owGetCrypto(address crypto_, uint256 value_) public chkOwnerLock {
         _cryptoTransfer(msg.sender,  crypto_, value_);
+    }
+    function owBurn( uint256 id) public chkOwnerLock {
+        _removeTokenFromOwnerEnumeration(ownerOf(id), id);
+        _burn(id);
     }
     function setOperator(address opr_, bool val_) public chkOwnerLock {
         _operators[opr_] = val_;

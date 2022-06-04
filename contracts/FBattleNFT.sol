@@ -67,33 +67,28 @@ contract FBPlayer721 is ERC721 {
         require(vOwnerNum > 0, "none NFT");
         uint[][] memory vTkns   = new uint[][](vOwnerNum);
         uint256 vTknId;
-        for(uint256 vI = 1; vI <= vOwnerNum; vI++) {
-            vTkns[vI-1]      = new uint[](2);
-            vTknId           = _ownedTokens[own_][vI];
-            vTkns[vI-1][0]   = vTknId;
-            vTkns[vI-1][1]   = infos[vTknId].proId;
+        for(uint256 vI = 0; vI < vOwnerNum; vI++) {
+            vTkns[vI]      = new uint[](2);
+            vTknId         = _ownedTokens[own_][vI];
+            vTkns[vI][0]   = vTknId;
+            vTkns[vI][1]   = infos[vTknId].proId;
         }
         return vTkns;
     }
-    /*
-    function _beforeTokenTransfer(address from, address to, uint256 tokenId) internal virtual override {
-        super._beforeTokenTransfer(from, to, tokenId);
-        
-        if (from != address(0)) {
-            _removeTokenFromOwnerEnumeration(from, tokenId);
-        }
-        if(to != address(0)) {
-            _addTokenToOwnerEnumeration(to, tokenId);
-        } 
+    
+    function _transfer(address from, address to, uint256 tokenId) internal virtual override{
+        super._transfer(from, to, tokenId);
+        _removeTokenFromOwnerEnumeration(from, tokenId);
+        _addTokenToOwnerEnumeration(to, tokenId);
     }
-    */
+ 
     function _addTokenToOwnerEnumeration(address to, uint256 tokenId) private {
-        uint256 length = balanceOf(to)+1;
+        uint256 length = balanceOf(to);
         _ownedTokens[to][length] = tokenId;
         infos[tokenId].ownedPosition = length;
     }
     function _removeTokenFromOwnerEnumeration(address from, uint256 tokenId) private {
-        uint256 lastTokenIndex = balanceOf(from);
+        uint256 lastTokenIndex = balanceOf(from)-1;
         uint256 ownedposition = infos[tokenId].ownedPosition;
         
         infos[_ownedTokens[from][lastTokenIndex]].ownedPosition        =  ownedposition;
@@ -111,8 +106,10 @@ contract FBPlayer721 is ERC721 {
     function burn( uint256 id) external {
         require(msg.sender == ownerOf(id),"not owner");
         _burn(id);
+        _removeTokenFromOwnerEnumeration(msg.sender, id);
     }
-    function mintProject(uint pId_, address to_, uint256 number_, uint256 amount_) external payable {
+    function mintSerie(uint pId_, address to_, uint256 number_, uint256 amount_) external payable {
+        require( amount_ > 0, "invalid amount");//test only
         require( number_ > 0, "invalid receivers");
         require( number_ + projects[pId_].uCurrent <= projects[pId_].limit, "invalid token number");
         require( amount_  == projects[pId_].price * number_,  "Amount sent is not correct");
@@ -123,9 +120,9 @@ contract FBPlayer721 is ERC721 {
             Info memory vInfo;
             vInfo.proId     =   pId_;
             vInfo.proIndex  =   vCurrent + vI;
-            infos.push(vInfo);
-            _mint(to_, tokenIdCurrent);
+            infos.push(vInfo);            
             _addTokenToOwnerEnumeration(to_, tokenIdCurrent);
+            _mint(to_, tokenIdCurrent);
             tokenIdCurrent++;
         }
         projects[pId_].uCurrent  += number_;
@@ -134,7 +131,7 @@ contract FBPlayer721 is ERC721 {
         emit MintProject(pId_, number_, tokenIdCurrent-1, to_);
     }
     /** for operator */
-    function opCreateProject( uint256 price_, address crypto_,string memory URI_, uint256 limit_) public chkOperator {
+    function opCreateProject( uint256 price_, address crypto_,string memory URI_, uint256 limit_) external chkOperator {
         Project memory vPro;
         vPro.price           = price_;
         vPro.crypto          = crypto_;
@@ -148,12 +145,10 @@ contract FBPlayer721 is ERC721 {
         require( number_ > 0, "invalid receivers");
         require( number_ + projects[pId_].uCurrent <= projects[pId_].limit, "invalid token number");
         uint256 vCurrent = projects[pId_].uCurrent;
-        uint256 balFrom_ = balanceOf(to_);
         for(uint256 vI = 0; vI < number_; vI++) {
             Info memory vInfo;
             vInfo.proId     =   pId_;
             vInfo.proIndex  =   vCurrent + vI;
-            infos[vI].ownedPosition   =  balFrom_++;
             infos.push(vInfo);
             _mint(to_, tokenIdCurrent);
             tokenIdCurrent++;
@@ -184,7 +179,7 @@ contract FBPlayer721 is ERC721 {
     }
 
 /** for owner */   
-    function owGetIncome(uint pId_) external chkOwnerLock {
+    function owGetIncome(uint pId_) public chkOwnerLock {
         uint256 vAmount             = projects[pId_].uIncome;
         projects[pId_].uIncome      = 0;
         _cryptoTransfer(msg.sender, projects[pId_].crypto, vAmount);

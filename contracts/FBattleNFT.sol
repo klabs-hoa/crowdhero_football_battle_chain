@@ -108,7 +108,7 @@ contract FBPlayer721 is ERC721 {
         _burn(id);
     }
     function mintSerie(uint pId_, uint256 number_, uint256 amount_) external payable {
-        // require( amount_ > 0, "invalid amount");
+        require( amount_ > 0, "invalid amount");
         require( number_ > 0, "invalid receivers");
         require( number_ + projects[pId_].uCurrent <= projects[pId_].limit, "invalid token number");
         require( amount_  == projects[pId_].price * number_,  "Amount sent is not correct");

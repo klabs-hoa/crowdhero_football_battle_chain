@@ -38,4 +38,9 @@ contract FBL is ERC20 {
         _burn(msg.sender, amount);
     }
  
+    function mintAvailable(string memory name_) public view returns(uint256) {
+        if((budgets[name_].withdrawTotal >= budgets[name_].budget ) || (budgets[name_].withdrawLast     + budgets[name_].withdrawDuration > block.timestamp ))
+            return 0;
+        return(( (block.timestamp - budgets[name_].withdrawLast) / budgets[name_].withdrawDuration) * budgets[name_].withdrawable ) ;
+    }
 }

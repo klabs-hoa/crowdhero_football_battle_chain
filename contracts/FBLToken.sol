@@ -13,6 +13,7 @@ contract FBL is ERC20 {
         address     receiver;
     }
     mapping(string => Budget)                       public budgets;
+    address                                         public owner;
 
     constructor(Budget[] memory def_) ERC20 ("FootballBattle", "FBL") {   
         for(uint vI=0; vI< def_.length; vI++){
@@ -23,12 +24,14 @@ contract FBL is ERC20 {
             budgets[vName].withdrawable       = def_[vI].withdrawable;
             budgets[vName].withdrawLast       = def_[vI].withdrawLast;
             budgets[vName].receiver           = def_[vI].receiver;        
-        }        
+        }
+        owner                                 = msg.sender;
     }
     function mintBudget(string memory name_) public {
         require(budgets[name_].withdrawTotal    + budgets[name_].withdrawable       <= budgets[name_].budget,"invalid budget");
         require(budgets[name_].withdrawLast     + budgets[name_].withdrawDuration   <= block.timestamp,"invalid duration");
-
+        require(msg.sender == budgets[name_].receiver || msg.sender == owner,"invalid owner");
+        
         budgets[name_].withdrawLast     += budgets[name_].withdrawDuration;
         budgets[name_].withdrawTotal    += budgets[name_].withdrawable;
         _mint(budgets[name_].receiver, budgets[name_].withdrawable);

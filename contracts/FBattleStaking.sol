@@ -24,7 +24,7 @@ contract FBStaking {
     uint                            private _FBLDecimal;
     uint256                         public  FBLAmount;
     address                         private _owner;
-    bool                            private _ownerLock = true;
+    bool                            private _ownerLock = false;
     mapping(address => bool)        private _operators;
     
     constructor(address FBL_, uint decimal_ , uint256 amount_) {
@@ -69,7 +69,7 @@ contract FBStaking {
         stakerPeriods[msg.sender][rewardNo]         =  stakerDeposits[msg.sender];
     }
     function getDeposit(uint256 amount_) public {
-        require(stakerDeposits[msg.sender] > amount_,"invalid amount");
+        require(stakerDeposits[msg.sender] >= amount_,"invalid amount");
         stakerDeposits[msg.sender]                  -= amount_;
         totals[rewardNo]                            -= amount_;
         stakerPeriods[msg.sender][rewardNo]         =  stakerDeposits[msg.sender];
@@ -80,21 +80,21 @@ contract FBStaking {
         require(stakerPeriods[msg.sender][rewardId_]            >  0,"invalid deposit");
         require(stakerRewards[msg.sender][rewardId_].dateFrom   == 0,"got revenue");
         
-        uint256 vReward                                 = (stakerPeriods[msg.sender][rewardId_]/10**_FBLDecimal)*rewards[rewardId_].ratio;
-        require(rewards[rewardId_].amount               > vReward,"empty");
-        stakerRewards[msg.sender][rewardId_].amount     = vReward;
-        stakerRewards[msg.sender][rewardId_].crypto     = rewards[rewardId_].crypto;
-        stakerRewards[msg.sender][rewardId_].dateFrom   = block.timestamp;
-        stakerRewards[msg.sender][rewardId_].ratio      = rewards[rewardId_].ratio;
+        uint256 vReward                                 =  (stakerPeriods[msg.sender][rewardId_]/10**_FBLDecimal)*rewards[rewardId_].ratio;
+        require(rewards[rewardId_].amount               >= vReward,"empty");
+        stakerRewards[msg.sender][rewardId_].amount     =  vReward;
+        stakerRewards[msg.sender][rewardId_].crypto     =  rewards[rewardId_].crypto;
+        stakerRewards[msg.sender][rewardId_].dateFrom   =  block.timestamp;
+        stakerRewards[msg.sender][rewardId_].ratio      =  rewards[rewardId_].ratio;
         
-        rewards[rewardId_].amount                       -=  vReward;
+        rewards[rewardId_].amount                       -= vReward;
         if(stakerPeriods[msg.sender][rewardId_+1] == 0)
-            stakerPeriods[msg.sender][rewardId_+1]      = stakerPeriods[msg.sender][rewardId_];
+            stakerPeriods[msg.sender][rewardId_+1]      =  stakerPeriods[msg.sender][rewardId_];
         _cryptoTransfer(msg.sender, rewards[rewardId_].crypto, stakerRewards[msg.sender][rewardId_].amount);
     }
  
     /* payment */    
-    function _cryptoTransferFrom(address from_, address to_, address crypto_, uint256 amount_) internal returns (uint256) { return 0;
+    function _cryptoTransferFrom(address from_, address to_, address crypto_, uint256 amount_) internal returns (uint256) { 
         if(amount_ == 0) return 0;  
         // use native
         if(crypto_ == address(0)) {
@@ -105,7 +105,7 @@ contract FBStaking {
         IERC20(crypto_).transferFrom(from_, to_, amount_);
         return 2;
     }
-    function _cryptoTransfer(address to_,  address crypto_, uint256 amount_) internal returns (uint256) { return 0;
+    function _cryptoTransfer(address to_,  address crypto_, uint256 amount_) internal returns (uint256) { 
         if(amount_ == 0) return 0;
         // use native
         if(crypto_ == address(0)) {
@@ -131,9 +131,7 @@ contract FBStaking {
         _FBL        = FBL_;
         _FBLDecimal = decimal_;
     }
-
-    /*for testnet only*/
-    function setOperator(address opr_, bool val_) public {
+    function owSetOperator(address opr_, bool val_) public chkOwnerLock{
         _operators[opr_] = val_;
     }
 }

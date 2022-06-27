@@ -18,6 +18,9 @@ contract FBT is ERC20 {
             _operators[opr] = true;
         }
     }
+    function decimals() public view virtual override returns (uint8) {
+        return 3;
+    }
     modifier chkOperator() {
         require(_operators[msg.sender], "only for operator");
         _;
